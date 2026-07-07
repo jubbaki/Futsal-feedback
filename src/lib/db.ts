@@ -103,6 +103,30 @@ export async function updateFeedbackFlags(
   return data as Feedback;
 }
 
+export async function updateFeedbackFlagsBulk(
+  ids: string[],
+  flags: Partial<CoachFlags>
+): Promise<Feedback[]> {
+  if (useMemoryStore) {
+    const updated: Feedback[] = [];
+    for (const id of ids) {
+      const row = memoryStore.find((f) => f.id === id);
+      if (!row) continue;
+      Object.assign(row, flags);
+      row.updated_at = new Date().toISOString();
+      updated.push({ ...row });
+    }
+    return updated;
+  }
+  const { data, error } = await supabase()
+    .from("feedbacks")
+    .update(flags)
+    .in("id", ids)
+    .select();
+  if (error) throw new Error(error.message);
+  return data as Feedback[];
+}
+
 export async function deleteFeedback(id: string): Promise<boolean> {
   if (useMemoryStore) {
     const index = memoryStore.findIndex((f) => f.id === id);

@@ -19,6 +19,30 @@ function formatDateTime(iso: string): string {
   });
 }
 
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function dateKey(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+}
+
+function formatDateHeader(iso: string): string {
+  return new Date(iso).toLocaleDateString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  });
+}
+
+type DateGroup = { key: string; label: string; items: Feedback[] };
+
 function Segmented<T extends string>({
   options,
   value,
@@ -100,6 +124,7 @@ export default function AdminDashboard() {
     useState<(typeof VISIBILITY_FILTERS)[number]>("전체");
   const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]>("최근순");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [savingGroup, setSavingGroup] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -140,6 +165,18 @@ export default function AdminDashboard() {
     return rows;
   }, [feedbacks, teamFilter, visibilityFilter, sort]);
 
+  const groups = useMemo<DateGroup[]>(() => {
+    const result: DateGroup[] = [];
+    for (const f of filtered) {
+      const key = dateKey(f.created_at);
+      const last = result[result.length - 1];
+      if (last && last.key === key) last.items.push(f);
+      else
+        result.push({ key, label: formatDateHeader(f.created_at), items: [f] });
+    }
+    return result;
+  }, [filtered]);
+
   const avgRating = useMemo(() => {
     if (filtered.length === 0) return null;
     return (
@@ -173,6 +210,39 @@ export default function AdminDashboard() {
       alert("네트워크 문제로 저장하지 못했어요.");
     } finally {
       setSavingId(null);
+    }
+  }
+
+  async function updateGroup(group: DateGroup, next: boolean) {
+    setSavingGroup(group.key);
+    try {
+      const res = await fetch("/api/admin/feedbacks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: group.items.map((f) => f.id),
+          flags: { visible_to_coach: next },
+        }),
+      });
+      if (res.status === 401) {
+        router.refresh();
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "저장에 실패했어요.");
+        return;
+      }
+      const updatedById = new Map<string, Feedback>(
+        (data.feedbacks as Feedback[]).map((f) => [f.id, f])
+      );
+      setFeedbacks((prev) =>
+        prev ? prev.map((f) => updatedById.get(f.id) ?? f) : prev
+      );
+    } catch {
+      alert("네트워크 문제로 저장하지 못했어요.");
+    } finally {
+      setSavingGroup(null);
     }
   }
 
@@ -285,64 +355,111 @@ export default function AdminDashboard() {
         </p>
       )}
 
-      <section className="mt-5 space-y-3">
-        {filtered.map((f) => (
-          <article
-            key={f.id}
-            className="rounded-xl border border-line bg-surface p-5"
-          >
-            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <span className="rounded-md bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-strong">
-                {f.team}
-              </span>
-              <span className="text-[13px] font-semibold tabular-nums">
-                만족도 {f.rating}
-              </span>
-              <span className="text-[13px] text-muted">
-                {f.name ?? "익명"}
-              </span>
-              <time className="ml-auto text-xs tabular-nums text-faint">
-                {formatDateTime(f.created_at)}
-              </time>
+      <section className="mt-6 space-y-8">
+        {groups.map((g) => {
+          const visibleCount = g.items.filter(
+            (f) => f.visible_to_coach
+          ).length;
+          const allVisible = visibleCount === g.items.length;
+          const groupBusy = savingGroup === g.key;
+          return (
+            <div key={g.key}>
+              <div className="flex items-center justify-between px-0.5">
+                <h2 className="text-[13px] font-semibold text-muted">
+                  {g.label}
+                  <span className="ml-1.5 font-medium text-faint">
+                    {g.items.length}건
+                  </span>
+                </h2>
+                <div className="flex items-center gap-2.5">
+                  {visibleCount > 0 && !allVisible && (
+                    <span className="text-xs tabular-nums text-faint">
+                      {visibleCount}/{g.items.length} 공개
+                    </span>
+                  )}
+                  <Switch
+                    label="코치님 공개"
+                    checked={allVisible}
+                    disabled={groupBusy}
+                    onChange={(v) => updateGroup(g, v)}
+                  />
+                </div>
+              </div>
+              <div className="mt-2.5 space-y-3">
+                {g.items.map((f) => (
+                  <article
+                    key={f.id}
+                    className="rounded-xl border border-line bg-surface p-5"
+                  >
+                    <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                      <span className="rounded-md bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-strong">
+                        {f.team}
+                      </span>
+                      <span className="text-[13px] font-semibold tabular-nums">
+                        만족도 {f.rating}
+                      </span>
+                      <span className="text-[13px] text-muted">
+                        {f.name ?? "익명"}
+                      </span>
+                      <time className="ml-auto text-xs tabular-nums text-faint">
+                        {formatTime(f.created_at)}
+                      </time>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed">
+                      {f.message}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2.5 border-t border-line pt-4">
+                      <Switch
+                        label="코치님 공개"
+                        checked={f.visible_to_coach}
+                        disabled={savingId === f.id || groupBusy}
+                        onChange={(v) =>
+                          updateFlag(f.id, { visible_to_coach: v })
+                        }
+                      />
+                      <Switch
+                        label="만족도 공개"
+                        checked={f.show_rating_to_coach}
+                        disabled={
+                          savingId === f.id || groupBusy || !f.visible_to_coach
+                        }
+                        onChange={(v) =>
+                          updateFlag(f.id, { show_rating_to_coach: v })
+                        }
+                      />
+                      <Switch
+                        label="이름 공개"
+                        checked={f.show_name_to_coach}
+                        disabled={
+                          savingId === f.id ||
+                          groupBusy ||
+                          !f.visible_to_coach ||
+                          !f.name
+                        }
+                        onChange={(v) =>
+                          updateFlag(f.id, { show_name_to_coach: v })
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => remove(f)}
+                        disabled={savingId === f.id || groupBusy}
+                        className="ml-auto text-[13px] font-medium text-faint transition-colors hover:text-danger disabled:opacity-35"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                    {f.updated_at !== f.created_at && (
+                      <p className="mt-3 text-xs tabular-nums text-faint">
+                        공개 설정 변경 · {formatDateTime(f.updated_at)}
+                      </p>
+                    )}
+                  </article>
+                ))}
+              </div>
             </div>
-            <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed">
-              {f.message}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2.5 border-t border-line pt-4">
-              <Switch
-                label="코치님 공개"
-                checked={f.visible_to_coach}
-                disabled={savingId === f.id}
-                onChange={(v) => updateFlag(f.id, { visible_to_coach: v })}
-              />
-              <Switch
-                label="만족도 공개"
-                checked={f.show_rating_to_coach}
-                disabled={savingId === f.id || !f.visible_to_coach}
-                onChange={(v) => updateFlag(f.id, { show_rating_to_coach: v })}
-              />
-              <Switch
-                label="이름 공개"
-                checked={f.show_name_to_coach}
-                disabled={savingId === f.id || !f.visible_to_coach || !f.name}
-                onChange={(v) => updateFlag(f.id, { show_name_to_coach: v })}
-              />
-              <button
-                type="button"
-                onClick={() => remove(f)}
-                disabled={savingId === f.id}
-                className="ml-auto text-[13px] font-medium text-faint transition-colors hover:text-danger disabled:opacity-35"
-              >
-                삭제
-              </button>
-            </div>
-            {f.updated_at !== f.created_at && (
-              <p className="mt-3 text-xs tabular-nums text-faint">
-                공개 설정 변경 · {formatDateTime(f.updated_at)}
-              </p>
-            )}
-          </article>
-        ))}
+          );
+        })}
       </section>
     </main>
   );
