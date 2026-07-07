@@ -176,6 +176,35 @@ export default function AdminDashboard() {
     }
   }
 
+  async function remove(f: Feedback) {
+    const preview =
+      f.message.length > 20 ? `${f.message.slice(0, 20)}…` : f.message;
+    if (!confirm(`이 의견을 완전히 삭제할까요?\n\n"${preview}"\n\n삭제하면 되돌릴 수 없어요.`))
+      return;
+    setSavingId(f.id);
+    try {
+      const res = await fetch(`/api/admin/feedbacks/${f.id}`, {
+        method: "DELETE",
+      });
+      if (res.status === 401) {
+        router.refresh();
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error ?? "삭제에 실패했어요.");
+        return;
+      }
+      setFeedbacks((prev) =>
+        prev ? prev.filter((row) => row.id !== f.id) : prev
+      );
+    } catch {
+      alert("네트워크 문제로 삭제하지 못했어요.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST" });
     router.refresh();
@@ -298,6 +327,14 @@ export default function AdminDashboard() {
                 disabled={savingId === f.id || !f.visible_to_coach || !f.name}
                 onChange={(v) => updateFlag(f.id, { show_name_to_coach: v })}
               />
+              <button
+                type="button"
+                onClick={() => remove(f)}
+                disabled={savingId === f.id}
+                className="ml-auto text-[13px] font-medium text-faint transition-colors hover:text-danger disabled:opacity-35"
+              >
+                삭제
+              </button>
             </div>
             {f.updated_at !== f.created_at && (
               <p className="mt-3 text-xs tabular-nums text-faint">

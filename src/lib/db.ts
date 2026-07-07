@@ -103,6 +103,22 @@ export async function updateFeedbackFlags(
   return data as Feedback;
 }
 
+export async function deleteFeedback(id: string): Promise<boolean> {
+  if (useMemoryStore) {
+    const index = memoryStore.findIndex((f) => f.id === id);
+    if (index === -1) return false;
+    memoryStore.splice(index, 1);
+    return true;
+  }
+  const { data, error } = await supabase()
+    .from("feedbacks")
+    .delete()
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data?.length ?? 0) > 0;
+}
+
 export async function listVisibleFeedbacks(): Promise<Feedback[]> {
   if (useMemoryStore) {
     return memoryStore

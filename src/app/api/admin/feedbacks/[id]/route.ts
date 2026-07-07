@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CoachFlags, updateFeedbackFlags } from "@/lib/db";
+import { CoachFlags, deleteFeedback, updateFeedbackFlags } from "@/lib/db";
 import { isAdminAuthenticated } from "@/lib/session";
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "로그인이 필요해요." }, { status: 401 });
+  }
+  const { id } = await params;
+  try {
+    const deleted = await deleteFeedback(id);
+    if (!deleted) {
+      return NextResponse.json(
+        { error: "해당 의견을 찾을 수 없어요." },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[admin] delete failed:", e);
+    return NextResponse.json(
+      { error: "삭제 중 문제가 생겼어요." },
+      { status: 500 }
+    );
+  }
+}
 
 const FLAG_KEYS: (keyof CoachFlags)[] = [
   "visible_to_coach",
