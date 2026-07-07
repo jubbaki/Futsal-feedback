@@ -19,7 +19,36 @@ function formatDateTime(iso: string): string {
   });
 }
 
-function Toggle({
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly T[];
+  value: T;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div className="flex rounded-lg border border-line bg-surface p-0.5">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onChange(opt)}
+          className={`h-8 rounded-[6px] px-3 text-[13px] transition-colors ${
+            value === opt
+              ? "bg-accent-soft font-semibold text-accent-strong"
+              : "font-medium text-muted hover:text-ink"
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Switch({
   label,
   checked,
   disabled,
@@ -33,26 +62,30 @@ function Toggle({
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-40 ${
-        checked
-          ? "border-pitch-600 bg-pitch-50 text-pitch-700"
-          : "border-gray-200 bg-white text-ink/60"
-      }`}
+      className="flex items-center gap-2 disabled:opacity-35"
     >
       <span
-        className={`relative inline-block h-4 w-7 rounded-full transition-colors ${
-          checked ? "bg-pitch-600" : "bg-gray-300"
+        className={`inline-block h-5 w-[34px] rounded-full p-0.5 transition-colors ${
+          checked ? "bg-accent" : "bg-line"
         }`}
       >
         <span
-          className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${
-            checked ? "left-3.5" : "left-0.5"
+          className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+            checked ? "translate-x-3.5" : ""
           }`}
         />
       </span>
-      {label}
+      <span
+        className={`text-[13px] font-medium ${
+          checked ? "text-ink" : "text-muted"
+        }`}
+      >
+        {label}
+      </span>
     </button>
   );
 }
@@ -149,114 +182,117 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-5 pb-16 pt-8">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">관리자 페이지</h1>
+    <main className="mx-auto max-w-2xl px-5 pb-20 pt-10">
+      <header className="flex items-baseline justify-between">
+        <div>
+          <h1 className="text-lg font-bold">관리자</h1>
+          <p className="mt-0.5 text-[13px] text-muted">
+            즐거운 풋살을 위한 소통창구
+          </p>
+        </div>
         <button
           onClick={logout}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-ink/60 active:bg-gray-50"
+          className="text-[13px] font-medium text-muted transition-colors hover:text-ink"
         >
           로그아웃
         </button>
       </header>
 
-      <section className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <div className="text-sm text-ink/50">의견 수 (현재 필터)</div>
-          <div className="mt-1 text-2xl font-bold">{filtered.length}건</div>
+      <section className="mt-6 grid grid-cols-2 divide-x divide-line rounded-xl border border-line bg-surface">
+        <div className="px-5 py-4">
+          <div className="text-xs font-medium text-faint">의견</div>
+          <div className="mt-1 text-xl font-bold tabular-nums">
+            {filtered.length}
+            <span className="ml-0.5 text-sm font-semibold text-muted">건</span>
+          </div>
         </div>
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <div className="text-sm text-ink/50">만족도 평균</div>
-          <div className="mt-1 text-2xl font-bold">
-            {avgRating === null ? "—" : `${avgRating} / 5`}
+        <div className="px-5 py-4">
+          <div className="text-xs font-medium text-faint">만족도 평균</div>
+          <div className="mt-1 text-xl font-bold tabular-nums">
+            {avgRating === null ? (
+              "—"
+            ) : (
+              <>
+                {avgRating}
+                <span className="ml-0.5 text-sm font-semibold text-muted">
+                  / 5
+                </span>
+              </>
+            )}
           </div>
         </div>
       </section>
 
-      <section className="mt-5 flex flex-wrap gap-x-6 gap-y-3">
-        {(
-          [
-            ["팀", TEAM_FILTERS, teamFilter, setTeamFilter],
-            ["공개 상태", VISIBILITY_FILTERS, visibilityFilter, setVisibilityFilter],
-            ["정렬", SORT_OPTIONS, sort, setSort],
-          ] as const
-        ).map(([label, options, value, setValue]) => (
-          <div key={label}>
-            <div className="text-xs font-medium text-ink/50">{label}</div>
-            <div className="mt-1.5 flex gap-1.5">
-              {options.map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() =>
-                    (setValue as (v: (typeof options)[number]) => void)(opt)
-                  }
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                    value === opt
-                      ? "bg-pitch-600 text-white"
-                      : "bg-white text-ink/60 shadow-sm active:bg-pitch-50"
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+      <section className="mt-5 flex flex-wrap gap-2">
+        <Segmented
+          options={TEAM_FILTERS}
+          value={teamFilter}
+          onChange={setTeamFilter}
+        />
+        <Segmented
+          options={VISIBILITY_FILTERS}
+          value={visibilityFilter}
+          onChange={setVisibilityFilter}
+        />
+        <Segmented options={SORT_OPTIONS} value={sort} onChange={setSort} />
       </section>
 
       {loadError && (
-        <div className="mt-6 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+        <div className="mt-8 rounded-[10px] border border-line bg-surface px-4 py-3 text-[13px] font-medium text-danger">
           {loadError}{" "}
-          <button onClick={load} className="underline">
+          <button onClick={load} className="ml-1 text-ink underline underline-offset-2">
             다시 시도
           </button>
         </div>
       )}
 
       {feedbacks === null && !loadError && (
-        <p className="mt-10 text-center text-ink/50">불러오는 중...</p>
+        <p className="mt-16 text-center text-sm text-faint">불러오는 중...</p>
       )}
 
       {feedbacks !== null && filtered.length === 0 && (
-        <p className="mt-10 text-center text-ink/50">
+        <p className="mt-16 text-center text-sm text-faint">
           조건에 맞는 의견이 없어요.
         </p>
       )}
 
-      <section className="mt-5 space-y-4">
+      <section className="mt-5 space-y-3">
         {filtered.map((f) => (
-          <article key={f.id} className="rounded-xl bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="rounded-md bg-pitch-100 px-2 py-0.5 font-semibold text-pitch-700">
+          <article
+            key={f.id}
+            className="rounded-xl border border-line bg-surface p-5"
+          >
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <span className="rounded-md bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-strong">
                 {f.team}
               </span>
-              <span className="font-semibold">
-                만족도 {f.rating}/5
+              <span className="text-[13px] font-semibold tabular-nums">
+                만족도 {f.rating}
               </span>
-              <span className="text-ink/50">
-                {f.name ? `✍️ ${f.name}` : "익명"}
+              <span className="text-[13px] text-muted">
+                {f.name ?? "익명"}
               </span>
-              <span className="ml-auto text-xs text-ink/40">
-                제출 {formatDateTime(f.created_at)}
-              </span>
+              <time className="ml-auto text-xs tabular-nums text-faint">
+                {formatDateTime(f.created_at)}
+              </time>
             </div>
-            <p className="mt-3 whitespace-pre-wrap leading-relaxed">
+            <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed">
               {f.message}
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Toggle
+            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2.5 border-t border-line pt-4">
+              <Switch
                 label="코치님 공개"
                 checked={f.visible_to_coach}
                 disabled={savingId === f.id}
                 onChange={(v) => updateFlag(f.id, { visible_to_coach: v })}
               />
-              <Toggle
+              <Switch
                 label="만족도 공개"
                 checked={f.show_rating_to_coach}
                 disabled={savingId === f.id || !f.visible_to_coach}
                 onChange={(v) => updateFlag(f.id, { show_rating_to_coach: v })}
               />
-              <Toggle
+              <Switch
                 label="이름 공개"
                 checked={f.show_name_to_coach}
                 disabled={savingId === f.id || !f.visible_to_coach || !f.name}
@@ -264,9 +300,9 @@ export default function AdminDashboard() {
               />
             </div>
             {f.updated_at !== f.created_at && (
-              <div className="mt-2 text-xs text-ink/40">
-                공개 설정 변경 {formatDateTime(f.updated_at)}
-              </div>
+              <p className="mt-3 text-xs tabular-nums text-faint">
+                공개 설정 변경 · {formatDateTime(f.updated_at)}
+              </p>
             )}
           </article>
         ))}

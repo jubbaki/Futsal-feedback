@@ -24,6 +24,28 @@ function formatDate(iso: string): string {
   });
 }
 
+function Stars({ rating }: { rating: number }) {
+  return (
+    <span className="inline-flex items-center gap-px" aria-label={`만족도 ${rating}점`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <svg
+          key={i}
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          className={i <= rating ? "text-amber-400" : "text-line"}
+          aria-hidden
+        >
+          <path
+            fill="currentColor"
+            d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5L2.6 9.3l6.5-.9L12 2.5z"
+          />
+        </svg>
+      ))}
+    </span>
+  );
+}
+
 export default async function CoachPage({
   params,
   searchParams,
@@ -53,26 +75,28 @@ export default async function CoachPage({
   }));
 
   return (
-    <main className="mx-auto max-w-2xl px-5 pb-16 pt-10">
-      <header className="text-center">
-        <div className="text-3xl">⚽</div>
-        <h1 className="mt-2 text-2xl font-bold">
+    <main className="mx-auto max-w-xl px-5 pb-20 pt-12">
+      <header>
+        <p className="text-[13px] font-semibold text-accent">
           즐거운 풋살을 위한 소통창구
+        </p>
+        <h1 className="mt-1.5 text-[22px] font-bold tracking-tight">
+          팀원들의 의견
         </h1>
-        <p className="mt-2 text-sm text-ink/60">
-          팀원들이 남긴 의견이에요. 늘 좋은 수업 감사합니다!
+        <p className="mt-2 text-[15px] leading-relaxed text-muted">
+          늘 좋은 수업 감사합니다. 팀원들이 남긴 의견을 전해드려요.
         </p>
       </header>
 
-      <nav className="mt-7 flex justify-center gap-2">
+      <nav className="mt-7 inline-flex rounded-lg border border-line bg-surface p-0.5">
         {TEAM_FILTERS.map((t) => (
           <Link
             key={t}
             href={t === "전체" ? "?" : `?team=${encodeURIComponent(t)}`}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            className={`flex h-8 items-center rounded-[6px] px-3.5 text-[13px] transition-colors ${
               teamFilter === t
-                ? "bg-pitch-600 text-white"
-                : "bg-white text-ink/60 shadow-sm"
+                ? "bg-accent-soft font-semibold text-accent-strong"
+                : "font-medium text-muted hover:text-ink"
             }`}
           >
             {t}
@@ -81,36 +105,34 @@ export default async function CoachPage({
       </nav>
 
       {feedbacks.length === 0 ? (
-        <p className="mt-16 text-center leading-relaxed text-ink/50">
-          아직 공개된 의견이 없어요.
-          <br />
-          의견이 모이면 이곳에서 보실 수 있어요.
-        </p>
+        <div className="mt-14 rounded-xl border border-dashed border-line px-6 py-14 text-center">
+          <p className="text-sm leading-relaxed text-faint">
+            아직 공개된 의견이 없어요.
+            <br />
+            의견이 모이면 이곳에서 보실 수 있어요.
+          </p>
+        </div>
       ) : (
-        <section className="mt-6 space-y-4">
+        <section className="mt-5 space-y-3">
           {feedbacks.map((f) => (
-            <article key={f.id} className="rounded-xl bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="rounded-md bg-pitch-100 px-2 py-0.5 font-semibold text-pitch-700">
+            <article
+              key={f.id}
+              className="rounded-xl border border-line bg-surface p-5"
+            >
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <span className="rounded-md bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-strong">
                   {f.team}
                 </span>
-                {f.rating !== null && (
-                  <span className="text-amber-500">
-                    {"★".repeat(f.rating)}
-                    <span className="text-gray-300">
-                      {"★".repeat(5 - f.rating)}
-                    </span>
-                  </span>
-                )}
-                <span className="ml-auto text-xs text-ink/40">
+                {f.rating !== null && <Stars rating={f.rating} />}
+                <time className="ml-auto text-xs tabular-nums text-faint">
                   {formatDate(f.created_at)}
-                </span>
+                </time>
               </div>
-              <p className="mt-3 whitespace-pre-wrap leading-relaxed">
+              <p className="mt-3.5 whitespace-pre-wrap text-[15px] leading-7">
                 {f.message}
               </p>
               {f.name && (
-                <p className="mt-3 text-right text-sm text-ink/50">
+                <p className="mt-3 text-right text-[13px] font-medium text-muted">
                   — {f.name}
                 </p>
               )}

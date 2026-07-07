@@ -33,26 +33,29 @@ export default function AdminLogin() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <h1 className="text-center text-xl font-bold">관리자 페이지</h1>
-      <form onSubmit={handleLogin} className="mt-6">
+    <main className="flex min-h-dvh items-center justify-center px-6">
+      <form onSubmit={handleLogin} className="w-full max-w-[300px] pb-16">
+        <h1 className="text-center text-lg font-bold">관리자</h1>
+        <p className="mt-1.5 text-center text-sm text-muted">
+          비밀번호를 입력해 주세요.
+        </p>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="비밀번호"
           autoFocus
-          className="w-full rounded-xl border-2 border-pitch-200 bg-white px-4 py-3.5 text-center text-lg tracking-widest outline-none focus:border-pitch-500"
+          aria-label="비밀번호"
+          className="mt-6 h-12 w-full rounded-[10px] border border-line bg-surface text-center text-lg tracking-[0.35em] outline-none transition-colors focus:border-accent"
         />
         {error && (
-          <p className="mt-3 text-center text-sm font-medium text-amber-800">
+          <p role="alert" className="mt-3 text-center text-[13px] font-medium text-danger">
             {error}
           </p>
         )}
         <button
           type="submit"
           disabled={submitting || password.length === 0}
-          className="mt-4 w-full rounded-xl bg-pitch-600 py-3.5 font-bold text-white active:bg-pitch-700 disabled:opacity-60"
+          className="mt-3 h-12 w-full rounded-[10px] bg-accent text-[15px] font-bold text-white transition-colors hover:bg-accent-strong disabled:opacity-50"
         >
           {submitting ? "확인 중..." : "들어가기"}
         </button>
