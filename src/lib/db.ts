@@ -152,8 +152,8 @@ export type CoachVisitSummary = {
   count: number;
 };
 
-// 30분 안의 재접속(새로고침 등)은 한 번의 방문으로 계산
-const VISIT_THROTTLE_MS = 30 * 60 * 1000;
+// 5분 안의 재접속(새로고침 등)은 한 번의 방문으로 계산
+const VISIT_THROTTLE_MS = 5 * 60 * 1000;
 
 export async function recordCoachVisit(): Promise<void> {
   if (useMemoryStore) {
