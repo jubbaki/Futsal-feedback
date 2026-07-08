@@ -5,7 +5,7 @@ create table if not exists public.feedbacks (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  team text not null check (team in ('함무라비', '버브')),
+  team text not null check (team in ('함무라비', '버브', '풋킥킥')),
   rating int not null check (rating between 0 and 5),
   name text,
   message text not null check (char_length(message) between 1 and 2000),
@@ -34,3 +34,11 @@ for each row execute function public.set_updated_at();
 -- anon/authenticated 키로는 읽기/쓰기 전부 차단.
 -- 앱은 서버에서 service_role 키로만 접근 (RLS 우회).
 alter table public.feedbacks enable row level security;
+
+-- 코치님 페이지 접속 기록 (시각만 저장 — IP/브라우저 정보 없음)
+create table if not exists public.coach_visits (
+  id uuid primary key default gen_random_uuid(),
+  visited_at timestamptz not null default now()
+);
+
+alter table public.coach_visits enable row level security;

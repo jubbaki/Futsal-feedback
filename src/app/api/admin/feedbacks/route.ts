@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   CoachFlags,
+  getCoachVisitSummary,
   listAllFeedbacks,
   updateFeedbackFlagsBulk,
 } from "@/lib/db";
@@ -70,7 +71,12 @@ export async function GET() {
   }
   try {
     const feedbacks = await listAllFeedbacks();
-    return NextResponse.json({ feedbacks });
+    // coach_visits 테이블이 아직 없어도 관리자 페이지는 동작하도록
+    const coachVisit = await getCoachVisitSummary().catch((e) => {
+      console.error("[admin] coach visit summary failed:", e);
+      return { last: null, count: 0 };
+    });
+    return NextResponse.json({ feedbacks, coachVisit });
   } catch (e) {
     console.error("[admin] list failed:", e);
     return NextResponse.json(

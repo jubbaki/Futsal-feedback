@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const TEAMS = ["함무라비", "버브"] as const;
+const TEAMS = ["함무라비", "버브", "풋킥킥"] as const;
 const RATINGS = [0, 1, 2, 3, 4, 5] as const;
 
 export default function SubmitPage() {
@@ -135,7 +135,7 @@ export default function SubmitPage() {
       <form onSubmit={handleSubmit}>
         <section className="mt-9">
           <label className="text-[15px] font-semibold">소속 팀</label>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             {TEAMS.map((t) => (
               <button
                 key={t}

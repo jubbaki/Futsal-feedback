@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CoachFlags, Feedback } from "@/lib/db";
+import type { CoachFlags, CoachVisitSummary, Feedback } from "@/lib/db";
 
-const TEAM_FILTERS = ["전체", "함무라비", "버브"] as const;
+const TEAM_FILTERS = ["전체", "함무라비", "버브", "풋킥킥"] as const;
 const VISIBILITY_FILTERS = ["전체", "공개됨", "비공개"] as const;
 const SORT_OPTIONS = ["최근순", "오래된순"] as const;
 
@@ -104,7 +104,7 @@ function Switch({
         />
       </span>
       <span
-        className={`text-[13px] font-medium ${
+        className={`whitespace-nowrap text-[13px] font-medium ${
           checked ? "text-ink" : "text-muted"
         }`}
       >
@@ -125,6 +125,7 @@ export default function AdminDashboard() {
   const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]>("최근순");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savingGroup, setSavingGroup] = useState<string | null>(null);
+  const [coachVisit, setCoachVisit] = useState<CoachVisitSummary | null>(null);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -140,6 +141,7 @@ export default function AdminDashboard() {
         return;
       }
       setFeedbacks(data.feedbacks);
+      setCoachVisit(data.coachVisit ?? null);
     } catch {
       setLoadError("네트워크 문제로 데이터를 불러오지 못했어요.");
     }
@@ -322,6 +324,22 @@ export default function AdminDashboard() {
         </div>
       </section>
 
+      <p className="mt-3 flex items-center gap-1.5 px-0.5 text-[13px] text-muted">
+        <span
+          className={`inline-block h-1.5 w-1.5 rounded-full ${
+            coachVisit?.last ? "bg-accent" : "bg-line"
+          }`}
+        />
+        {coachVisit?.last ? (
+          <>
+            코치님 마지막 접속 · {formatDateTime(coachVisit.last)}
+            <span className="text-faint">(총 {coachVisit.count}회)</span>
+          </>
+        ) : (
+          "코치님 접속 기록이 아직 없어요."
+        )}
+      </p>
+
       <section className="mt-5 flex flex-wrap gap-2">
         <Segmented
           options={TEAM_FILTERS}
@@ -357,23 +375,44 @@ export default function AdminDashboard() {
 
       <section className="mt-6 space-y-8">
         {groups.map((g) => {
-          const visibleCount = g.items.filter(
-            (f) => f.visible_to_coach
-          ).length;
+          const visibleItems = g.items.filter((f) => f.visible_to_coach);
+          const visibleCount = visibleItems.length;
           const allVisible = visibleCount === g.items.length;
           const groupBusy = savingGroup === g.key;
+          // 공개된 의견이 있고, 마지막 공개 설정 변경 이후 코치님이 접속했으면 "확인"
+          const lastPublished =
+            visibleCount > 0
+              ? visibleItems.reduce(
+                  (max, f) => (f.updated_at > max ? f.updated_at : max),
+                  ""
+                )
+              : null;
+          const coachSeen =
+            lastPublished !== null &&
+            coachVisit?.last != null &&
+            coachVisit.last >= lastPublished;
           return (
             <div key={g.key}>
-              <div className="flex items-center justify-between px-0.5">
-                <h2 className="text-[13px] font-semibold text-muted">
-                  {g.label}
-                  <span className="ml-1.5 font-medium text-faint">
+              <div className="flex flex-wrap items-center justify-between gap-y-2 px-0.5">
+                <h2 className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[13px] font-semibold text-muted">
+                  <span className="whitespace-nowrap">{g.label}</span>
+                  <span className="font-medium text-faint">
                     {g.items.length}건
                   </span>
+                  {lastPublished !== null &&
+                    (coachSeen ? (
+                      <span className="whitespace-nowrap rounded-md bg-accent-soft px-1.5 py-0.5 text-xs font-semibold text-accent-strong">
+                        ✓ 코치님 확인
+                      </span>
+                    ) : (
+                      <span className="whitespace-nowrap rounded-md border border-line px-1.5 py-0.5 text-xs font-medium text-faint">
+                        확인 전
+                      </span>
+                    ))}
                 </h2>
-                <div className="flex items-center gap-2.5">
+                <div className="ml-auto flex items-center gap-2.5">
                   {visibleCount > 0 && !allVisible && (
-                    <span className="text-xs tabular-nums text-faint">
+                    <span className="whitespace-nowrap text-xs tabular-nums text-faint">
                       {visibleCount}/{g.items.length} 공개
                     </span>
                   )}

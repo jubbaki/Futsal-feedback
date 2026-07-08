@@ -1,7 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 
-export const TEAMS = ["함무라비", "버브"] as const;
+export const TEAMS = ["함무라비", "버브", "풋킥킥"] as const;
 export type Team = (typeof TEAMS)[number];
 
 export type Feedback = {
@@ -34,6 +34,10 @@ const useMemoryStore =
 const memoryStore: Feedback[] = ((
   globalThis as { __futsalMemoryStore?: Feedback[] }
 ).__futsalMemoryStore ??= []);
+
+const memoryVisits: string[] = ((
+  globalThis as { __futsalMemoryVisits?: string[] }
+).__futsalMemoryVisits ??= []);
 
 let client: SupabaseClient | null = null;
 function supabase(): SupabaseClient {
@@ -141,6 +145,56 @@ export async function deleteFeedback(id: string): Promise<boolean> {
     .select("id");
   if (error) throw new Error(error.message);
   return (data?.length ?? 0) > 0;
+}
+
+export type CoachVisitSummary = {
+  last: string | null;
+  count: number;
+};
+
+// 30분 안의 재접속(새로고침 등)은 한 번의 방문으로 계산
+const VISIT_THROTTLE_MS = 30 * 60 * 1000;
+
+export async function recordCoachVisit(): Promise<void> {
+  if (useMemoryStore) {
+    const last = memoryVisits[memoryVisits.length - 1];
+    if (last && Date.now() - new Date(last).getTime() < VISIT_THROTTLE_MS)
+      return;
+    memoryVisits.push(new Date().toISOString());
+    return;
+  }
+  const { data, error } = await supabase()
+    .from("coach_visits")
+    .select("visited_at")
+    .order("visited_at", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  const last = data?.[0]?.visited_at as string | undefined;
+  if (last && Date.now() - new Date(last).getTime() < VISIT_THROTTLE_MS)
+    return;
+  const { error: insertError } = await supabase()
+    .from("coach_visits")
+    .insert({});
+  if (insertError) throw new Error(insertError.message);
+}
+
+export async function getCoachVisitSummary(): Promise<CoachVisitSummary> {
+  if (useMemoryStore) {
+    return {
+      last: memoryVisits[memoryVisits.length - 1] ?? null,
+      count: memoryVisits.length,
+    };
+  }
+  const { data, error, count } = await supabase()
+    .from("coach_visits")
+    .select("visited_at", { count: "exact" })
+    .order("visited_at", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return {
+    last: (data?.[0]?.visited_at as string | undefined) ?? null,
+    count: count ?? 0,
+  };
 }
 
 export async function listVisibleFeedbacks(): Promise<Feedback[]> {

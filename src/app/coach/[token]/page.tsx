@@ -1,9 +1,15 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { timingSafeEqual } from "crypto";
-import { listVisibleFeedbacks, TEAMS } from "@/lib/db";
+import { listVisibleFeedbacks, recordCoachVisit, TEAMS } from "@/lib/db";
+import { isAdminAuthenticated } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
+
+// 카톡/슬랙 등 메신저의 링크 미리보기 봇 접속은 방문으로 치지 않음
+const BOT_UA_PATTERN =
+  /bot|crawler|spider|scrap|preview|facebookexternalhit|kakaotalk|whatsapp|telegram|slack|discord|linkedin|twitter/i;
 
 const TEAM_FILTERS = ["전체", ...TEAMS] as const;
 
@@ -55,6 +61,17 @@ export default async function CoachPage({
 }) {
   const { token } = await params;
   if (!isValidToken(token)) notFound();
+
+  // 방문 기록: 시각만 저장 (User-Agent는 봇 판별에만 쓰고 저장하지 않음)
+  // 관리자 본인이 미리보기로 여는 경우는 제외
+  try {
+    const userAgent = (await headers()).get("user-agent") ?? "";
+    if (!BOT_UA_PATTERN.test(userAgent) && !(await isAdminAuthenticated())) {
+      await recordCoachVisit();
+    }
+  } catch (e) {
+    console.error("[coach] visit logging failed:", e);
+  }
 
   const { team } = await searchParams;
   const teamFilter = TEAM_FILTERS.includes(team as (typeof TEAM_FILTERS)[number])
